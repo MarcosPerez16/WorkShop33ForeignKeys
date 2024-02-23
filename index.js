@@ -13,6 +13,92 @@ app.use(require("morgan")("dev"));
 
 //Routes
 
+//Read employees
+app.get("/api/employees", async (req, res, next) => {
+  try {
+    const SQL = `
+        SELECT * FROM employees;
+        `;
+    const response = await client.query(SQL);
+    res.send(response.rows);
+  } catch (ex) {
+    next(ex);
+  }
+});
+
+//Read departments
+app.get("/api/departments", async (req, res, next) => {
+  try {
+    const SQL = `
+        SELECT * FROM departments;
+        `;
+    const response = await client.query(SQL);
+    res.send(response.rows);
+  } catch (ex) {
+    next(ex);
+  }
+});
+
+//create employee
+app.post("/api/employees", async (req, res, next) => {
+  try {
+    const { name, department_id } = req.body;
+    const SQL = `
+            INSERT INTO employees (name, department_id)
+            VALUES($1, $2)
+            RETURNING *;
+        `;
+
+    const response = await client.query(SQL, [name, department_id]);
+    res.status(201).json(response.rows[0]);
+  } catch (ex) {
+    next(ex);
+  }
+});
+
+//Delete employee
+app.delete("/api/employees/:id", async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const SQL = `
+        DELETE FROM employees WHERE id = $1;
+        `;
+    await client.query(SQL, [id]);
+    res.sendStatus(204);
+  } catch (ex) {
+    next(ex);
+  }
+});
+
+//Update employee
+app.put("/api/employees/:id", async (req, res, next) => {
+  const { id } = req.params;
+  const { name, department_id } = req.body;
+  try {
+    const SQL = `
+        UPDATE employees
+        SET name = $1, department_id = $2, updated_at = now()
+        WHERE id = $3
+        RETURNING *;
+        `;
+    const response = await client.query(SQL, [name, department_id, id]);
+
+    if (!response.rows[0]) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    res.json(response.rows[0]);
+  } catch (ex) {
+    next(ex);
+  }
+});
+
+//Error handling route
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: "Internal Service Error" });
+});
+
 const init = async () => {
   try {
     await client.connect();
